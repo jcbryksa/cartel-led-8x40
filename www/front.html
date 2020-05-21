@@ -1,0 +1,422 @@
+<!--
+    Esta es una pagina auxiliar que emula a la que expone el propio cartel, mediante webserver
+    accedido via WiFi, como interfaz de usuario para la edicion de los mensajes
+-->
+<!DOCTYPE html>
+<html lang='en'>
+<head>
+    <meta charset='UTF-8'>
+    <meta name='viewport' content='width=device-width, initial-scale=1.0'>
+    <meta http-equiv='X-UA-Compatible' content='ie=edge'>
+    <title>Cartel LED</title>
+    <script>
+        // El formato del contenido de esta variable es tal como se almacena en la 
+        // memoria EEPROM del dispositivo para persistir los mensajes
+        let messages = '23`24`1`30`2000^Cartel~23`24`1`40`2000^Electronico~23`24`1`40`2000^MAX7219~5`5`1`30`1^Mensaje con desplazamiento hacia la izquierda~';
+    </script>
+    <style>
+        body {
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        select, textarea {
+            font-size: 14px;
+            padding: 2px 5px 2px 5px;
+            display:inline-block;
+            position:relative;
+            color:black;
+            border:1px solid #ccc;
+            border-radius: 5px;
+            min-width: 50px;
+        }
+        textarea {
+            min-width: 200px;
+            min-height: 80px;
+        }
+        td {
+            text-align: center;
+            border: solid rgb(139, 138, 138) 1px;
+            padding: 5px;
+        }
+        tr.selected {
+            background-color:dodgerblue;
+        }
+        button {
+            padding: 10px;
+            font-weight: bold;
+            color: white;
+            border-radius: 8px;
+            margin: 10px 2px 10px 2px;
+            cursor: pointer;
+        }
+        button.save{
+            background-color: green;
+        }
+        button.del{
+            background-color: red;
+        }
+        button.disabled{
+            background-color: gray;
+            cursor: auto;
+        }
+        button.add{
+            background-color: blue;
+        }
+        .loading {
+            background-color: lightblue;
+            border-radius: 4px;
+            color:white;
+            padding: 3px 20px 3px 20px;
+            visibility: hidden;
+        }
+        .header {
+            font-size: 16px;
+            font-weight: bold;
+        }
+        .orderLabel {
+            background-color: silver;
+            font-weight: bold;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        .actionCell {
+            width: 30px;
+            color: red;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <h1>Mensajes del cartel</h1>
+    <hr>
+    <button class='save'>Guardar</button> <button class='add'>Agregar / Insertar</button> <button class='del'>Eliminar</button> <span class='loading'>. . .</span>
+    <table id='tblMessages' cellspacing='0' cellpadding='0'>
+        <tr class='header'><td>Orden</td><td>Texto</td><td>Efecto de Entrada</td><td>Efecto de Salida</td><td>Velocidad</td><td>Pausa</td><td style='color:red;'>Borrar</td></tr>
+    </table>
+    <button class='save'>Guardar</button> <button class='add'>Agregar / Insertar</button> <button class='del'>Eliminar</button> <span class='loading'>. . .</span>
+
+    <script>
+
+        const getById = (id) => document.getElementById(id);
+        const getByClass = (c) => document.getElementsByClassName(c);
+
+        const tbl = getById('tblMessages');
+
+        const deleteRow = (row) => {
+            if (confirm('Realmente desea eliminar este mensaje?')) {
+                saveEnable(true);
+                row.remove();
+                updRowIndex();
+                clearSelRow();
+            }
+        };
+
+        const clearSelRow = () => {
+            Array.from(tbl.getElementsByTagName('tr')).forEach((r) => {
+                r.classList.remove('selected');
+            });
+            delEnable(false);
+        };
+
+        const selRow = (selected) => {
+
+            const rows = Array.from(tbl.getElementsByTagName('tr'));
+            const l = selected.classList;
+
+            rows.forEach( (r) => {
+                if(r.rowIndex != selected.rowIndex)
+                    r.classList.remove('selected');
+            });
+
+            if( l.contains('selected') ) {
+                l.remove('selected');
+                delEnable(false);
+            }
+            else {
+                l.add('selected');
+                delEnable(true);
+            }
+
+        };
+
+        const updRowIndex = () => {
+
+            const rows = Array.from(tbl.getElementsByTagName('tr'));
+
+            for ( let i = 1 ; i < rows.length ; i++ ) {
+                let cols = rows[i].getElementsByTagName('td');
+
+                cols[0].innerHTML = i;
+
+                let span = cols[5].getElementsByTagName('span');
+                if ( rows.length > 2 ) {
+                    cols[6].innerHTML = '<span class=\'actionCell\' title=\'Eliminar mensaje\'>X</span>';
+                    cols[6].getElementsByTagName('span')[0].onclick = () =>deleteRow(rows[i]);
+                }
+                else if ( span.length )
+                    span[0].remove();
+
+                cols[0].onclick = () => selRow(rows[i]);
+
+            }
+
+        };
+
+        const saveEnable = (enable) => {
+            Array.from(document.getElementsByClassName('save')).forEach((e)=>{
+                if (enable) {
+                    e.disabled = false;
+                    e.classList.remove('disabled');
+                } else {
+                    e.disabled = true;
+                    e.classList.add('disabled');
+                }
+            });
+        };
+
+        const delEnable = (enable) => {
+            
+            Array.from(document.getElementsByClassName('del')).forEach((e)=>{
+                if (enable) {
+                    e.disabled = false;
+                    e.classList.remove('disabled');
+                } else {
+                    e.disabled = true;
+                    e.classList.add('disabled');
+                }
+            });
+        };
+
+        const loading = (l) => {
+            if (l) v = 'visible';
+            else  v = 'hidden';
+            Array.from(getByClass('loading')).forEach((e)=>{e.style.visibility = v});
+        };
+
+        const addRow = (p) => {
+
+            let tr = document.createElement('tr');
+            const effects = [
+                {v:'0', d:'No_effect'},
+                {v:'1', d:'Print'},
+                {v:'2', d:'Scroll_up'},
+                {v:'3', d:'Scroll_down'},
+                {v:'4', d:'Scroll_right'},
+                {v:'5', d:'Scroll_left'},
+                {v:'6', d:'Sprite'},
+                {v:'7', d:'Slice'},
+                {v:'8', d:'Mesh'},
+                {v:'9', d:'Fade'},
+                {v:'10',d:'Dissolve'},
+                {v:'11',d:'Blinds'},
+                {v:'12',d:'Random'},
+                {v:'13',d:'Wipe'},
+                {v:'14',d:'Wipe_cursor'},
+                {v:'15',d:'Scan_horiz'},
+                {v:'16',d:'Scan_horizx'},
+                {v:'17',d:'Scan_vert'},
+                {v:'18',d:'Scan_vertx'},
+                {v:'19',d:'Opening'},
+                {v:'20',d:'Opening_cursor'},
+                {v:'21',d:'Closing'},
+                {v:'22',d:'Closing_cursor'},
+                {v:'23',d:'Scroll_up_right'},
+                {v:'24',d:'Scroll_up_left'},
+                {v:'25',d:'Scroll_down_right'},
+                {v:'26',d:'Scroll_down_left'},
+                {v:'27',d:'Grow_up'},
+                {v:'28',d:'Grow_down'}
+            ];
+
+            const spedds = [
+                {v:'90',d:'1'},
+                {v:'85',d:'2'},
+                {v:'80',d:'3'},
+                {v:'75',d:'4'},
+                {v:'70',d:'5'},
+                {v:'65',d:'6'},
+                {v:'60',d:'7'},
+                {v:'55',d:'8'},
+                {v:'50',d:'9'},
+                {v:'45',d:'10'},
+                {v:'40',d:'11'},
+                {v:'35',d:'12'},
+                {v:'30',d:'13'},
+                {v:'25',d:'14'},
+                {v:'20',d:'15'},
+                {v:'15',d:'16'},
+                {v:'10',d:'17'},
+                {v:'5' ,d:'18'},
+                {v:'3' ,d:'19'},
+                {v:'1' ,d:'20'}
+            ];
+
+            const pauses = [
+                {v:'1'   ,d: '0'},
+                {v:'1000',d: '1'},
+                {v:'2000',d: '2'},
+                {v:'3000',d: '3'},
+                {v:'4000',d: '4'},
+                {v:'5000',d: '5'},
+                {v:'6000',d: '6'},
+                {v:'7000',d: '7'},
+                {v:'8000',d: '8'},
+                {v:'9000',d: '9'},
+                {v:'10000',d:'10'}
+            ];
+
+            let rowHtml =
+             '<td class=\'orderLabel\'><span>1</span></td> '
+            +'<td><textarea>(mensaje)</textarea></td> '
+            +'<td> '
+            +    '<select> ';
+
+            effects.forEach((e) => rowHtml += `<option value='${e.v}'>${e.d}</option>`)
+
+            rowHtml +=
+                 '</select> '
+            +'</td> '
+            +'<td> '
+            +    '<select> ';
+
+            effects.forEach((e) => rowHtml += `<option value='${e.v}'>${e.d}</option>`)
+
+            rowHtml +=
+                 '</select> '
+            +'</td> '
+            +'<td> '
+            +    '<select> ';
+
+            spedds.forEach((s) => rowHtml += `<option value='${s.v}'>${s.d}</option>`)
+
+            rowHtml +=
+                 '</select> '
+            +'</td> '
+            +'<td> '
+            +    '<select> ';
+
+            pauses.forEach((p) => rowHtml += `<option value='${p.v}'>${p.d}</option>`)
+
+            rowHtml +=
+                 '</select> '
+            +'</td> '
+            +'<td> </td>';
+
+            tr.innerHTML = rowHtml;
+            
+            const rowSelected = getByClass('selected');
+            if (rowSelected.length)
+                rowSelected[0].parentNode.insertBefore(tr, rowSelected[0].nextSibling);
+            else
+                tbl.appendChild(tr);
+
+            const get = (n) => tr.getElementsByTagName(n);
+
+            updRowIndex();
+
+            const t = get('textarea')[0];
+            const s = get('select');
+
+            if (p) {
+                t.value = p[0];
+                s[0].value   = p[1];
+                s[1].value   = p[2];
+                s[2].value   = p[3];
+                s[3].value   = p[4];
+            } else {
+                t.value = '-Mensaje-';
+                s[0].value   = 5;
+                s[1].value   = 5;
+                s[2].value   = 30;
+                s[3].value   = 1;
+                t.select();
+            }
+
+            Array.from(s).forEach((e)=>{
+                e.onchange = ()=>saveEnable(true);
+            });
+
+            t.onkeypress = ()=>saveEnable(true);
+            t.onchange = ()=>saveEnable(true);
+
+        };
+
+
+        const save = () => {
+
+            messages = '';
+
+            Array.from(tbl.getElementsByTagName('tr')).forEach((r)=>{
+
+                const get = (n) => r.getElementsByTagName(n);
+                const t = get('textarea')[0];
+                const s = get('select');
+
+                if ( r.className == 'header' )
+                    return;
+
+                messages += s[0].value +'`'+ s[1].value +'`1`'+ s[2].value +'`'+ s[3].value +'^'+ t.value +'~';
+
+            });
+
+            saveEnable(false);
+
+            let xhr = new XMLHttpRequest();
+
+            loading(true);
+
+            xhr.open('POST', 'http://192.168.4.1:8081/save');
+            xhr.onreadystatechange = ()=>{
+                if ( xhr.readyState > 3 && xhr.status == 200 ) {
+                    loading(false);//alert(xhr.responseText);
+                }
+            };
+            //xhr.setRequestHeader('X-Requested-With', 'XMLHttpRequest');
+            //xhr.setRequestHeader('Content-Type', 'application/x-www-form-urlencoded');
+            xhr.send(messages);
+
+        };
+
+        document.addEventListener('DOMContentLoaded', function() {
+
+            Array.from(getByClass('add')).forEach((e)=>{
+                e.onclick = ()=>{
+                    addRow();
+                    saveEnable(true);
+                }
+            });
+
+            Array.from(getByClass('save')).forEach((e)=>{
+                e.onclick = ()=>save();
+            });
+
+            Array.from(getByClass('del')).forEach((e)=>{
+                e.onclick = ()=>deleteRow(getByClass('selected')[0]);
+            });
+
+            saveEnable(false);
+            delEnable(false);
+
+            const aMsgs = messages.split('~');
+
+            aMsgs.forEach( (m) => {
+                if (! m )
+                    return;
+                const a = m.split('^');
+                const msg = a[1];
+                const par = a[0];
+                const p = par.split('`');
+                addRow([
+                    msg,
+                    p[0],
+                    p[1],
+                    p[3],
+                    p[4],
+                ]);
+            });
+        });
+
+    </script>
+
+</body>
+</html>
