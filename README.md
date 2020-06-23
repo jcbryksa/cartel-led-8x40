@@ -6,15 +6,15 @@ La lógica está programada en C++ sobre una placa [NodeMCU](https://github.com/
 
 El armado de la matriz de leds es un experimento (con buen resultado) realizado con tiras de led 5050.
 
-![Tiras led](misc/tiras-led-01.jpg)
+<img src="misc/tiras-led-01.jpg" width="450" />
 
 En el interior del cartel se encuentran los MAX7219, también conectados de manera "artesanal" :).
 
-![Interior](misc/interior-01.jpg)
+<img src="misc/interior-01.jpg" width="450" />
 
 Luego, con un poco de pintura negra en la parte frontal del panel mejora un poco la vista y el contraste de cada led.
 
-![Frente](misc/frente-01.jpg)
+<img src="misc/frente-01.jpg" width="450" />
 
 &nbsp;
 
@@ -22,10 +22,7 @@ Luego, con un poco de pintura negra en la parte frontal del panel mejora un poco
 
 ## Video demostrativo
 
-<video width="450" height="300" controls>
-  <source src="misc/cartel-8x40-01.mp4" type="video/mp4">
-Your browser does not support the video tag.
-</video>
+[![IMAGE ALT TEXT HERE](https://img.youtube.com/vi/uIsm9Eb4sG4/0.jpg)](https://www.youtube.com/watch?v=uIsm9Eb4sG4)
 
 &nbsp;
 
